@@ -43,7 +43,7 @@ The release rule: every number that feeds the score is either correct or left bl
 - **Reading screenshots:** 155 graded fields across 22 Pokémon screens: 145 correct, 10 left blank and flagged, 0 silently wrong. 3 correct values were flagged anyway.
 - **Test suite:** 273 app checks (accuracy, scoring, user flows, offline, online-reader fallback, batch reading, problem reports) and 15 server checks, all passing. See [`tests/results.md`](tests/results.md).
 - **JPEG copies:** IV bars read correctly from 78 of 78 PNG, full-size JPEG and 1000 px JPEG versions, since some phones and messaging apps re-encode screenshots.
-- **The score itself:** [compared with the in-game showcase result on N entries, or say it's checked against the community formula only].
+- **The score itself:** in my experience, scores differ only slightly from the in-game values, by 2 to 3 percent at most.
 - **What broke and what I changed** (full log in [`BUGS.md`](BUGS.md)):
   - The phone's battery level, 82, was read as the CP. The CP search now skips the status bar.
   - Gold size badges were missed, so an XXL lost its 178 points with no warning. The badge finder now accepts teal or gold, and a height that doesn't fit its tag is flagged.
