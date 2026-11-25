@@ -49,9 +49,9 @@ The release rule: every number that feeds the score is either correct or left bl
   - Gold size badges were missed, so an XXL lost its 178 points with no warning. The badge finder now accepts teal or gold, and a height that doesn't fit its tag is flagged.
   - On a real iPhone, adding several Pokémon at once merged them into one record. Each screenshot is now read separately and only clear matches are paired.
 
-## Testing with real players
+## Testing on real phones
 
-[How many] players use it on their own phones. Every reading has a button to report a problem. Reports land in Cloudflare KV, and a daily Claude task reads them through `/api/reports`, files them in a Notion tracker and marks them triaged. The first triage run found that IV bars weren't read from JPEG screenshots, which led to the JPEG checks above. [Anything else testers caught.]
+So far my son and I are the only testers, using it on our own phones, and between us we've found and fixed four bugs. Every reading has a button to report a problem. Reports land in Cloudflare KV, and a daily Claude task reads them through `/api/reports`, files them in a Notion tracker and marks them triaged. The first triage run found that IV bars weren't read from JPEG screenshots, which led to the JPEG checks above.
 
 ## What's not in this repo
 
