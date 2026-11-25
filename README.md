@@ -9,6 +9,10 @@ Showcase Scorer is an unofficial, installable web app (PWA). Add a screenshot of
 
 > Not affiliated with, endorsed by or sponsored by Niantic, Nintendo, The Pokémon Company or Game Freak. Pokémon and Pokémon GO are trademarks of their respective owners. Scores are estimates based on community research.
 
+## Why I built it
+
+I enter a lot of showcases, and picking the right entry meant flipping between screens and guessing. I wanted to add a screenshot and get a score in a few seconds. It also became my sandbox for taking a small AI feature all the way to real users: build it, measure it, put it in testers' hands and fix what they find. I built it with Claude Code.
+
 ---
 
 ## Features
@@ -134,6 +138,14 @@ Latest run: **273 app checks and 15 server checks pass.** Across 155 screenshot 
 The 27 screenshot fixtures aren't in this repo, so `tests/run-tests.js` needs your own. Put each screenshot in `tests/fixtures/` and its true values in `POKEMON_TRUTH` or `SEARCH_TRUTH` in `tests/run-tests.js`.
 
 So far my son and I are the only testers, using it on our own phones, and between us we've found and fixed four bugs.
+
+### What broke and what I changed
+
+The full log is in [`BUGS.md`](BUGS.md). Three examples:
+
+- The phone's battery level, 82, was read as the CP. The CP search now skips the status bar.
+- Gold size badges were missed, so an XXL lost its 178 points with no warning. The badge finder now accepts teal or gold, and a height that doesn't fit its tag is flagged.
+- On a real iPhone, adding several Pokémon at once merged them into one record. Each screenshot is now read separately and only clear matches are paired.
 
 ## Known limitations
 
