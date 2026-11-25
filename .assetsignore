@@ -1,0 +1,16 @@
+# Files Wrangler should not serve as static assets (same syntax as .gitignore)
+_worker.js
+wrangler.toml
+.dev.vars
+.dev.vars.example
+.env
+.env.*
+.git
+.gitignore
+.wrangler
+node_modules
+scripts
+tests
+README.md
+BUGS.md
+.DS_Store

@@ -1,0 +1,13 @@
+# Third-party OCR files. Download them with scripts/fetch-vendor.sh
+vendor/
+
+# Test screenshots. Add your own to run tests/run-tests.js
+tests/fixtures/
+
+# Local secrets and tooling
+.env
+.env.*
+.dev.vars
+node_modules/
+.wrangler/
+.DS_Store
