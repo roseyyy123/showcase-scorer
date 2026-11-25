@@ -1,124 +1,163 @@
 # Showcase Scorer
 
-An installable mobile web app that scores Pokémon GO showcase entries from screenshots, so you know which Pokémon to enter before you walk up to the stop. Try it at https://showcase-scorer.pages.dev.
+**Score your Pokémon GO showcase entries from screenshots, right on your phone.**
 
-Unofficial fan tool. Not affiliated with, endorsed or sponsored by Niantic, Nintendo, Creatures, GAME FREAK or The Pokémon Company. Pokémon and Pokémon GO are trademarks of their respective owners.
+Showcase Scorer is an unofficial, installable web app (PWA). Add a screenshot of a Pokémon's page. The app reads its stats on your device and estimates the showcase score. It also keeps a list of your best entries and tracks which ones count for Great Buddy showcases.
 
-## Why I built it
+**Live app:** https://showcase-scorer.pages.dev
+**Version:** 1.3.1
 
-I enter a lot of showcases, and picking the right entry meant flipping between screens and guessing. I wanted to add a screenshot and get a score in a few seconds. It also became my sandbox for taking a small AI feature all the way to real users: build it, measure it, put it in testers' hands and fix what they find. [How you built it, for example with Claude Code, if you want to say.]
+> Not affiliated with, endorsed by or sponsored by Niantic, Nintendo, The Pokémon Company or Game Freak. Pokémon and Pokémon GO are trademarks of their respective owners. Scores are estimates based on community research.
 
-## How it works
+---
 
-1. Add screenshots of each Pokémon's page and/or appraisal screen, several at once if you like. A page and an appraisal of the same Pokémon are paired automatically; different Pokémon are never merged.
-2. The screenshots are read on the phone with Tesseract.js: species, CP, height, weight, size tag, type labels and catch date. IVs are measured from the appraisal bars' pixels. Nothing is uploaded.
-3. Every reading is checked against what the species can be. A height outside the species' range is dropped, a size tag that doesn't fit the height is flagged, and regional forms are told apart by their type labels.
-4. Anything doubtful is left blank and flagged for you to confirm, rather than guessed.
-5. The app scores the entry with the formula players worked out (the game doesn't publish one) and shows the range that the game's on-screen rounding allows.
-6. Screenshots of a `buddy3-5` storage search fill in buddy levels for Great Buddy showcases.
-7. Your list stays in the browser, with filters by showcase, CSV export and backup.
+## Features
 
-An optional online reader sends screenshots to a vision model through the server instead, which helps with nicknames, size badges and Best Buddy medals. It asks for consent first and falls back to on-device reading if the service fails. [Is it switched on in your deployment, and with Gemini or Workers AI?]
+- **On-device screenshot reading.** Tesseract.js reads the species, CP, height, weight, size tag (XXS–XXL), types and catch date. Your screenshots never leave the phone unless you turn on the optional online reader.
+- **IV measurement.** Attack, Defense and HP are measured from the pixels of the appraisal bars.
+- **Showcase scoring.** Each entry is scored for general, type and Great Buddy showcases. Type and buddy showcases are scored against the Pokémon's own species.
+- **Batch upload.** Add several screenshots at once. Each Pokémon gets its own card in a review list. Appraisal and stats screenshots of the same Pokémon are merged.
+- **Buddy levels.** Upload the results of a `buddy3-5` search (or `buddy5` for Best Buddies). The app matches buddies to your saved Pokémon by species and CP.
+- **Careful flagging.** Readings that look wrong, like a missed size badge, a hidden height or an unclear form, are flagged for you to check rather than saved silently.
+- **My Pokémon list.** Sort and filter your entries. Download a CSV, and back up or restore your list as JSON. Everything is saved on the device.
+- **Works offline.** Add it to your Home Screen. After the first visit it opens and reads screenshots without a connection.
+- **Report a problem.** Testers can send a description and up to four screenshots from inside the app.
 
-## How it fits together
-
-```
-Phone browser (installable, works offline)
-   │  screenshots
-   ▼
-On-device reader (Tesseract.js) ── or, with consent ──▶ /api/read ──▶ Gemini or Workers AI
-   │                                                     (the API key stays on the server)
-   ▼
-Plausibility checks: species size limits, size tag vs height, form by type
-   ▼
-Score with flagged fields to confirm ──▶ list saved in this browser (CSV, backup)
-
-Report a problem ──▶ /api/report ──▶ Cloudflare KV ──▶ /api/reports ──▶ daily Claude triage into Notion
-```
-
-## How I checked it
-
-The release rule: every number that feeds the score is either correct or left blank and flagged. A wrong score with no warning is a P0.
-
-- **Reading screenshots:** 155 graded fields across 22 Pokémon screens: 145 correct, 10 left blank and flagged, 0 silently wrong. 3 correct values were flagged anyway.
-- **Test suite:** 273 app checks (accuracy, scoring, user flows, offline, online-reader fallback, batch reading, problem reports) and 15 server checks, all passing. See [`tests/results.md`](tests/results.md).
-- **JPEG copies:** IV bars read correctly from 78 of 78 PNG, full-size JPEG and 1000 px JPEG versions, since some phones and messaging apps re-encode screenshots.
-- **The score itself:** in my experience, scores differ only slightly from the in-game values, by 2 to 3 percent at most.
-- **What broke and what I changed** (full log in [`BUGS.md`](BUGS.md)):
-  - The phone's battery level, 82, was read as the CP. The CP search now skips the status bar.
-  - Gold size badges were missed, so an XXL lost its 178 points with no warning. The badge finder now accepts teal or gold, and a height that doesn't fit its tag is flagged.
-  - On a real iPhone, adding several Pokémon at once merged them into one record. Each screenshot is now read separately and only clear matches are paired.
-
-## Testing on real phones
-
-So far my son and I are the only testers, using it on our own phones, and between us we've found and fixed four bugs. Every reading has a button to report a problem. Reports land in Cloudflare KV, and a daily Claude task reads them through `/api/reports`, files them in a Notion tracker and marks them triaged. The first triage run found that IV bars weren't read from JPEG screenshots, which led to the JPEG checks above.
-
-## What's not in this repo
-
-- **API keys and admin keys.** They live in Cloudflare secrets, or in a local `.dev.vars` (see `.dev.vars.example`), which git ignores.
-- **Test screenshots.** They show game art, so `tests/fixtures/` stays local.
-- **Tesseract.js.** It's third-party code (Apache-2.0). `scripts/fetch-vendor.sh` downloads the exact tested version into `vendor/`.
-- **Tester data.** Problem reports stay in Cloudflare KV.
-
-## Run it yourself
+## How scoring works
 
 ```
-git clone <this repo> && cd showcase-scorer
+score = 800 × (height / avgHeight) / ratioMax
+      + 150 × (weight / avgWeight) / (ratioMax + 0.5)
+      +  50 × (atk + def + hp) / 45
+      + 178 if the Pokémon is XXL
+```
+
+- `ratioMax` is the species' largest XXL height divided by its average height, usually about 1.55, 1.75 or 2.0.
+- In-game height and weight are rounded, so the app scores a ±0.005 range.
+- Size classes by height ratio: XXS ≤ 0.5, XS 0.5–0.75, average 0.75–1.25, XL 1.25–1.5, XXL > 1.5.
+- **Pumpkaboo and Gourgeist** use the size tag to set the form: XS/XXS → Small, no tag → Average, XL → Large, XXL → Super. Only Super Size gets the XXL bonus.
+- `species.js` holds 1,205 species and forms. The XXL limit of 70 newer species is an estimate (1.75), and it is raised automatically if a larger Pokémon is seen.
+
+In my experience, scores differ only slightly from the in-game values, by 2 to 3 percent at most.
+
+## Architecture
+
+```
+iPhone (Safari / Home Screen app)
+ ├─ index.html, app.js, styles.css     UI, scoring, batch list, storage
+ ├─ reader-ocr.js + vendor/tesseract   on-device reading (no upload)
+ └─ sw.js                              offline cache
+        │
+        ▼  only for reports and the optional online reader
+Cloudflare Pages  ── _worker.js
+ ├─ GET  /api/health          what's turned on
+ ├─ POST /api/read            optional online reader (Gemini or Workers AI)
+ ├─ POST /api/report          problem reports → KV namespace (REPORTS)
+ └─ GET  /api/reports         triage feed, needs the ADMIN_TOKEN secret
+        │
+        ▼
+Daily Claude triage task → Notion triage database (bug IDs, priority, status)
+```
+
+A scheduled Claude task reads new reports each evening. It tries to reproduce each one, assigns a priority from P0 to P3, files it in a private Notion database, and sends a summary notification. It only reads and files reports. It never changes code, deploys or contacts testers.
+
+## Repository layout
+
+| Path | What it is |
+|---|---|
+| `index.html`, `styles.css`, `app.js` | The app |
+| `species.js` | Species sizes, types and XXL limits |
+| `reader-ocr.js` | On-device screenshot reader |
+| `scripts/fetch-vendor.sh` | Downloads Tesseract.js 7.0.0 and its English language data (Apache-2.0) into `vendor/`, self-hosted so the app works offline. `vendor/` isn't in the repo, so run this first. |
+| `sw.js`, `manifest.webmanifest`, `icons/` | PWA and offline support |
+| `_worker.js`, `wrangler.toml`, `.assetsignore` | Server for Cloudflare Pages (advanced mode) or Workers |
+| `.dev.vars.example` | Template for local secrets. Copy it to `.dev.vars`, which git ignores. |
+| `tests/` | Playwright tests, server tests and the latest `results.md`. The screenshot fixtures aren't included because they show game art. |
+| `BUGS.md` | Bug log, priorities and known issues |
+
+## Run it locally
+
+```bash
 bash scripts/fetch-vendor.sh
 python3 -m http.server 8765
+# open http://localhost:8765
 ```
-Open http://localhost:8765. This runs on-device reading only, with no server for online reading or problem reports.
 
-### Deploy to Cloudflare Workers
+This runs the app with on-device reading only. The `/api` routes need Cloudflare (see below).
 
-1. Create a free Cloudflare account and install Node.js.
-2. Run `bash scripts/fetch-vendor.sh`, then `npx wrangler login` and `npx wrangler deploy`. You get a link like `https://showcase-scorer.<you>.workers.dev`.
-3. On an iPhone, open the link in Safari, tap Share, then **Add to Home Screen**.
+## Deploy
 
-Before you share the link publicly, turn on the `[[ratelimits]]` block in `wrangler.toml`, so strangers can't use up your free quota.
+Run `bash scripts/fetch-vendor.sh` first, so `vendor/` is in the folder you deploy.
 
-### Optional: the online reader
+### Cloudflare Pages (drag and drop)
 
-Pick one:
-- **Google Gemini (more accurate):** make an API key in Google AI Studio, then run `npx wrangler secret put GEMINI_API_KEY` and `npx wrangler deploy`. Check which models are currently free and set `GEMINI_MODEL` in `wrangler.toml`. Google's free tier may use what you send to improve its products, and the app tells users this before they turn it on.
-- **Cloudflare Workers AI (no key, more private):** uncomment the `[ai]` block in `wrangler.toml` and deploy. Check that the model in `WORKERS_AI_MODEL` accepts images on your account.
+1. Create a Pages project named `showcase-scorer` and upload the folder, or a zip with the files at its root. Leave out `tests/`, `scripts/` and the docs.
+2. **Problem reports (optional):**
+   - Create a KV namespace (e.g. `showcase-reports`).
+   - Bind it to the project as `REPORTS`.
+   - Add a **Secret** named `ADMIN_TOKEN` with a long random value, at least 24 characters (for example `openssl rand -hex 32`).
+   - Redeploy, since bindings only apply to new deployments.
+3. Check `https://<project>.pages.dev/api/health`. It should show `"reports": true`.
 
-### Optional: problem reports
+### Cloudflare Workers (wrangler)
 
-The "Report a problem" button posts to `/api/report`, which stores reports in a KV namespace bound as `REPORTS`. The triage feed, `/api/reports`, needs an `ADMIN_TOKEN` secret.
-
-- **Workers:** create the namespace with `npx wrangler kv namespace create showcase-reports`, add its id to the commented `[[kv_namespaces]]` block in `wrangler.toml`, run `npx wrangler secret put ADMIN_TOKEN`, then deploy.
-- **Pages:** in the dashboard, create a KV namespace and bind it to the project as `REPORTS`. Add a secret named `ADMIN_TOKEN`. Bindings and secrets only apply to deployments made after you add them.
-
-Use a long random string for the admin key, at least 24 characters (for example `openssl rand -hex 32`). Then `https://<your-link>/api/health` should show `"reports": true`. Limits: 15 reports per phone per day, up to 4 screenshots each.
-
-### First-deploy checklist
-
-- [ ] `https://<your-link>/api/health` shows `"online": true`, or `false` if you skipped the online reader
-- [ ] Settings shows "Online AI", and choosing it asks for consent
-- [ ] A screenshot read with Online AI on matches the values you know
-- [ ] On iPhone, Add to Home Screen opens full screen, the photo picker works, and Download CSV and Back up my list save a file
-- [ ] In Airplane Mode, the app reopens from the Home Screen and still reads a screenshot (after one earlier use online)
-
-## Run the tests
-
+```bash
+npx wrangler login
+npx wrangler deploy
 ```
-node tests/server-test.mjs   # server: reports, admin key, rate limit (no setup needed)
+
+For problem reports on Workers, follow the commented `[[kv_namespaces]]` block in `wrangler.toml`, which has the commands to create the namespace and set `ADMIN_TOKEN`.
+
+### Optional online reader
+
+The online reader is off by default, and it's off in the live app, which reads screenshots on the phone only. Turn it on with either of these:
+
+- **Google Gemini:** `npx wrangler secret put GEMINI_API_KEY`, then set `GEMINI_MODEL` in `wrangler.toml`. Google's free tier may use what you send to improve its products, and the app tells users this before they turn it on.
+- **Cloudflare Workers AI:** uncomment the `[ai]` block in `wrangler.toml`.
+
+Before you share the link widely, turn on the `[[ratelimits]]` block.
+
+> Never commit `ADMIN_TOKEN`, `GEMINI_API_KEY` or other secrets. Set them as Cloudflare secrets, or in a local `.dev.vars` for development.
+
+## Tests
+
+```bash
+node tests/server-test.mjs   # server: reports, admin key, rate limits (no setup needed)
 
 npm install playwright && npx playwright install chromium
 python3 -m http.server 8765 &
-node tests/run-tests.js      # the app, in a headless browser
+node tests/run-tests.js      # app: OCR fields, IVs, scoring, batch, buddy list, UI
 ```
 
-`tests/run-tests.js` needs your own screenshots in `tests/fixtures/`. Name each one in `POKEMON_TRUTH` or `SEARCH_TRUTH` at the top of the file, with the true values read off the screen. Results go to `tests/results.md`.
+Latest run: **273 app checks and 15 server checks pass.** Across 155 screenshot fields, 145 are read correctly and 10 are flagged for review. None are silently wrong. Results are written to `tests/results.md`.
 
-## Data and credits
+The 27 screenshot fixtures aren't in this repo, so `tests/run-tests.js` needs your own. Put each screenshot in `tests/fixtures/` and its true values in `POKEMON_TRUTH` or `SEARCH_TRUTH` in `tests/run-tests.js`.
 
-- Species sizes come from [PokémonDB](https://pokemondb.net)'s Pokémon GO data, plus 70 newer species from the game's own data, whose XXL limit is an estimate. [PokémonDB permission to reuse its data: status.]
-- The scoring formula is community-derived, so scores are estimates and the app labels them that way.
-- The app uses no Pokémon artwork.
-- On-device reading uses [Tesseract.js](https://github.com/naptha/tesseract.js) (Apache-2.0).
+So far my son and I are the only testers, using it on our own phones, and between us we've found and fixed four bugs.
+
+## Known limitations
+
+See `BUGS.md` for the full list.
+
+- All test screenshots come from one iPhone screen size, in English. Other devices or languages may misread, but plausibility checks catch most errors that would change the score.
+- Nicknamed Pokémon need the species picked by hand, unless you use the online reader.
+- Catch dates are read as US M/D/YYYY. This only affects sorting.
+- Some forms with the same types and no size tag, such as regular and Origin Dialga, are flagged for you to choose.
+- Best Buddy status comes from search screenshots (`buddy5`), not from the medal on the Pokémon's page.
+
+## Privacy
+
+- On-device reading never uploads anything. Your list is stored in the browser's local storage.
+- Problem reports and their screenshots are stored only in the owner's Cloudflare account and triage database. Reports are limited to 15 per IP address per day.
+- The online reader is opt-in and asks for consent first.
+
+## Credits
+
+- Species size data: [PokémonDB](https://pokemondb.net/go) Pokémon GO data. Newer species come from the game master published by PokeMiners.
+- OCR: [Tesseract.js](https://github.com/naptha/tesseract.js) (Apache-2.0).
+- The scoring formula comes from community research on showcase scoring.
+- Built with Claude Code.
 
 ## License
 
-[Your pick, for example MIT.]
+My own code is released under the [MIT License](LICENSE). It doesn't cover the PokémonDB size data in `species.js` or Tesseract.js, which keep their own terms.
