@@ -1,6 +1,6 @@
 # Showcase Scorer
 
-An installable mobile web app that scores Pokémon GO showcase entries from screenshots, so you know which Pokémon to enter before you walk up to the stop. Try it at [live link, or say it's invite only for now].
+An installable mobile web app that scores Pokémon GO showcase entries from screenshots, so you know which Pokémon to enter before you walk up to the stop. Try it at https://showcase-scorer.pages.dev.
 
 Unofficial fan tool. Not affiliated with, endorsed or sponsored by Niantic, Nintendo, Creatures, GAME FREAK or The Pokémon Company. Pokémon and Pokémon GO are trademarks of their respective owners.
 
