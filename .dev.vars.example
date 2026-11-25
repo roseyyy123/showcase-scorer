@@ -1,0 +1,5 @@
+# Copy to .dev.vars for local runs with `npx wrangler dev`. Never commit .dev.vars.
+# Online reader (optional): a Google AI Studio key
+GEMINI_API_KEY=
+# Problem-report triage feed: a long random string, at least 24 characters
+ADMIN_TOKEN=
